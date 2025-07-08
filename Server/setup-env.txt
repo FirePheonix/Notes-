@@ -1,0 +1,4 @@
+# Copy .env.example to .env first
+cp .env.example .env
+
+# Then edit the .env file with your actual keys
