@@ -55,10 +55,11 @@ app.use('/api/', limiter);
 app.get('/api/health', (req, res) => {
   res.json({
     success: true,
-    message: 'Server is healthy - CORS updated for notes-16q6',
+    message: 'Server is healthy - CORS updated for notes-16q6 v1.2',
     timestamp: new Date().toISOString(),
     cors_origins: corsOrigins,
-    version: '1.1.0'
+    version: '1.2.0',
+    backend_url: 'notes-sand-five-24.vercel.app'
   });
 });
 
