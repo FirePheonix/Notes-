@@ -22,8 +22,9 @@ app.use(helmet());
 app.use(cors({
   origin: [
     process.env.FRONTEND_URL || 'http://localhost:5173',
-    'https://notes-16q6.vercel.app', // Add your actual frontend Vercel URL here
-    'https://noteslo-frontend.vercel.app' // Alternative frontend URL
+    'https://notes-16q6.vercel.app', // Your actual frontend URL
+    'https://noteslo-frontend.vercel.app', // Alternative frontend URL
+    'http://localhost:5173' // Local development
   ],
   credentials: true
 }));
@@ -50,8 +51,13 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.get('/health', (req, res) => {
   res.json({ 
     success: true, 
-    message: 'Server is healthy',
-    timestamp: new Date().toISOString()
+    message: 'Server is healthy - CORS fixed',
+    timestamp: new Date().toISOString(),
+    cors_origins: [
+      'https://notes-16q6.vercel.app',
+      'https://noteslo-frontend.vercel.app',
+      'http://localhost:5173'
+    ]
   });
 });
 
