@@ -2,12 +2,23 @@ import { ChatModel, ChatDocument } from '../models/Chat.js';
 import { Chat, ChatResponse, PaginatedResponse } from '../types/index.js';
 import { CreateChatInput, UpdateChatInput, PaginationInput, SearchInput } from '../validators/chatValidators.js';
 import { Types } from 'mongoose';
+import { Database } from '../config/database.js';
 
 export class ChatService {
+  
+  // Ensure database connection before operations
+  private async ensureConnection(): Promise<void> {
+    const database = Database.getInstance();
+    if (!database.isConnected()) {
+      await database.connect();
+    }
+  }
   
   // Create a new chat
   async createChat(userId: string, data: CreateChatInput): Promise<ChatResponse> {
     try {
+      await this.ensureConnection();
+      
       const chat = new ChatModel({
         userId,
         title: data.title,
@@ -24,6 +35,8 @@ export class ChatService {
   // Get all chats for a user with pagination
   async getUserChats(userId: string, params: SearchInput): Promise<PaginatedResponse<ChatResponse>> {
     try {
+      await this.ensureConnection();
+      
       const { page, limit, search } = params;
       const skip = (page - 1) * limit;
       
@@ -58,6 +71,8 @@ export class ChatService {
   // Get a specific chat by ID
   async getChatById(userId: string, chatId: string): Promise<ChatResponse | null> {
     try {
+      await this.ensureConnection();
+      
       const chat = await ChatModel.findOne({ _id: chatId, userId }).exec();
       return chat ? this.formatChatResponse(chat) : null;
     } catch (error) {
@@ -68,6 +83,8 @@ export class ChatService {
   // Update a chat
   async updateChat(userId: string, chatId: string, data: UpdateChatInput): Promise<ChatResponse | null> {
     try {
+      await this.ensureConnection();
+      
       const updateData: any = {};
       if (data.title !== undefined) updateData.title = data.title;
       if (data.elements !== undefined) updateData.elements = data.elements;
@@ -87,6 +104,8 @@ export class ChatService {
   // Delete a chat
   async deleteChat(userId: string, chatId: string): Promise<boolean> {
     try {
+      await this.ensureConnection();
+      
       const result = await ChatModel.deleteOne({ _id: chatId, userId }).exec();
       return result.deletedCount > 0;
     } catch (error) {
@@ -97,6 +116,8 @@ export class ChatService {
   // Save chat elements (for auto-save functionality)
   async saveElements(userId: string, chatId: string, elements: any[]): Promise<ChatResponse | null> {
     try {
+      await this.ensureConnection();
+      
       const chat = await ChatModel.findOneAndUpdate(
         { _id: chatId, userId },
         { elements },
