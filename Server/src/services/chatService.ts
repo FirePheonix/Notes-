@@ -1,6 +1,7 @@
 import { ChatModel, ChatDocument } from '../models/Chat.js';
 import { Chat, ChatResponse, PaginatedResponse } from '../types/index.js';
 import { CreateChatInput, UpdateChatInput, PaginationInput, SearchInput } from '../validators/chatValidators.js';
+import { Types } from 'mongoose';
 
 export class ChatService {
   
@@ -111,7 +112,7 @@ export class ChatService {
   // Format chat document for response
   private formatChatResponse(chat: ChatDocument): ChatResponse {
     return {
-      id: chat._id.toString(),
+      id: (chat._id as Types.ObjectId).toString(),
       title: chat.title,
       elements: chat.elements,
       createdAt: chat.createdAt.toISOString(),
