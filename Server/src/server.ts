@@ -15,34 +15,32 @@ import authTestRoutes from './routes/authTest.js';
 dotenv.config();
 
 const app = express();
+
+// --- Optional Local Port (ONLY used in dev) ---
 const PORT = process.env.PORT || 3000;
 
-// Security headers
-app.use(helmet());
-
-// Define CORS options
-const corsOptions = {
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:5173',
-    'https://notes-16q6.vercel.app',
-    'https://noteslo-frontend.vercel.app',
-    'http://localhost:5173'
-  ],
+// --- CORS ---
+const corsOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:5173',
+  'https://notes-16q6.vercel.app',
+  'https://noteslo-frontend.vercel.app',
+  'http://localhost:5173'
+];
+app.use(cors({
+  origin: corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
-};
+}));
+app.options('*', cors());
 
-// 👇 Preflight OPTIONS support
-app.options('*', cors(corsOptions));
-
-// Apply CORS middleware
-app.use(cors(corsOptions));
-
-// Clerk authentication
+// --- Middleware ---
+app.use(helmet());
 app.use(clerkMiddleware());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Rate limiter
+// --- Rate Limiting ---
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -53,59 +51,34 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// Body parsers
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Health check route
-app.get('/health', (req, res) => {
+// --- Routes ---
+app.get('/api/health', (req, res) => {
   res.json({
     success: true,
-    message: 'Server is healthy - CORS configured correctly.',
+    message: 'Server is healthy - CORS updated for notes-16q6',
     timestamp: new Date().toISOString(),
+    cors_origins: corsOrigins,
     version: '1.1.0'
   });
 });
 
-// API routes
 app.use('/api/auth', authTestRoutes);
 app.use('/api/chats', authenticateUser, chatRoutes);
 
-// Error handlers
+// --- Error Handlers ---
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-// Start server
-async function startServer() {
+// --- Auto-connect to DB (for Vercel cold starts) ---
+(async () => {
   try {
-    const db = Database.getInstance();
-    await db.connect();
-
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`🌐 CORS origins: ${corsOptions.origin.join(', ')}`);
-    });
-  } catch (err) {
-    console.error('❌ Failed to start server:', err);
-    process.exit(1);
+    const database = Database.getInstance();
+    await database.connect();
+    console.log('✅ Connected to database');
+  } catch (error) {
+    console.error('❌ Failed to connect to DB on cold start:', error);
   }
-}
+})();
 
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('🔻 Shutting down...');
-  const db = Database.getInstance();
-  await db.disconnect();
-  process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  console.log('🔻 Shutting down...');
-  const db = Database.getInstance();
-  await db.disconnect();
-  process.exit(0);
-});
-
-startServer();
-
+// --- Export app for Vercel ---
 export default app;
