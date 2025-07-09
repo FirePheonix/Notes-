@@ -71,15 +71,34 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // --- Auto-connect to DB (for Vercel cold starts) ---
-(async () => {
+let isConnecting = false;
+
+const ensureDBConnection = async () => {
+  if (isConnecting) return;
+  
   try {
+    isConnecting = true;
     const database = Database.getInstance();
-    await database.connect();
-    console.log('✅ Connected to database');
+    if (!database.isConnected()) {
+      console.log('🔄 Connecting to database...');
+      await database.connect();
+      console.log('✅ Connected to database');
+    }
   } catch (error) {
-    console.error('❌ Failed to connect to DB on cold start:', error);
+    console.error('❌ Failed to connect to DB:', error);
+  } finally {
+    isConnecting = false;
   }
-})();
+};
+
+// Initialize DB connection immediately
+ensureDBConnection();
+
+// Middleware to ensure DB connection before each request
+app.use(async (req, res, next) => {
+  await ensureDBConnection();
+  next();
+});
 
 // --- Export app for Vercel ---
 export default app;
