@@ -93,3 +93,6 @@ process.on('SIGTERM', async () => {
 });
 
 startServer();
+
+// Export app for Vercel
+export default app;
