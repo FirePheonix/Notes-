@@ -20,7 +20,21 @@ export class Database {
         return;
       }
 
+      // Skip if currently connecting
+      if (mongoose.connection.readyState === 2) {
+        console.log('MongoDB connection in progress, waiting...');
+        // Wait for connection to complete
+        await new Promise((resolve, reject) => {
+          mongoose.connection.once('connected', resolve);
+          mongoose.connection.once('error', reject);
+          setTimeout(() => reject(new Error('Connection timeout')), 10000);
+        });
+        return;
+      }
+
       const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/drawing-app';
+      
+      console.log('🔄 Initiating MongoDB connection...');
       
       // Optimized connection options for serverless/Vercel
       await mongoose.connect(mongoUri, {
@@ -33,7 +47,7 @@ export class Database {
         bufferCommands: false // Disable mongoose buffering
       });
       
-      console.log('Connected to MongoDB successfully');
+      console.log('✅ Connected to MongoDB successfully');
       
       // Set up connection event listeners
       mongoose.connection.on('error', (error) => {
@@ -49,7 +63,7 @@ export class Database {
       });
 
     } catch (error) {
-      console.error('Failed to connect to MongoDB:', error);
+      console.error('❌ Failed to connect to MongoDB:', error);
       throw error;
     }
   }

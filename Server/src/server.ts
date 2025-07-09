@@ -72,32 +72,56 @@ app.use(errorHandler);
 
 // --- Auto-connect to DB (for Vercel cold starts) ---
 let isConnecting = false;
+let connectionPromise: Promise<void> | null = null;
 
 const ensureDBConnection = async () => {
-  if (isConnecting) return;
-  
-  try {
-    isConnecting = true;
-    const database = Database.getInstance();
-    if (!database.isConnected()) {
-      console.log('🔄 Connecting to database...');
-      await database.connect();
-      console.log('✅ Connected to database');
-    }
-  } catch (error) {
-    console.error('❌ Failed to connect to DB:', error);
-  } finally {
-    isConnecting = false;
+  if (isConnecting && connectionPromise) {
+    // If connection is in progress, wait for it
+    await connectionPromise;
+    return;
   }
+  
+  const database = Database.getInstance();
+  if (database.isConnected()) {
+    // Already connected
+    return;
+  }
+  
+  if (!isConnecting) {
+    isConnecting = true;
+    connectionPromise = (async () => {
+      try {
+        console.log('🔄 Connecting to database...');
+        await database.connect();
+        console.log('✅ Connected to database');
+      } catch (error) {
+        console.error('❌ Failed to connect to DB:', error);
+        throw error;
+      } finally {
+        isConnecting = false;
+        connectionPromise = null;
+      }
+    })();
+  }
+  
+  await connectionPromise;
 };
 
-// Initialize DB connection immediately
-ensureDBConnection();
+// Initialize DB connection immediately when module loads
+const initPromise = ensureDBConnection();
 
 // Middleware to ensure DB connection before each request
 app.use(async (req, res, next) => {
-  await ensureDBConnection();
-  next();
+  try {
+    await ensureDBConnection();
+    next();
+  } catch (error) {
+    console.error('Database connection failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Database connection failed'
+    });
+  }
 });
 
 // --- Export app for Vercel ---
