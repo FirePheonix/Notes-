@@ -51,13 +51,14 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.get('/health', (req, res) => {
   res.json({ 
     success: true, 
-    message: 'Server is healthy - CORS fixed',
+    message: 'Server is healthy - CORS updated for notes-16q6',
     timestamp: new Date().toISOString(),
     cors_origins: [
       'https://notes-16q6.vercel.app',
       'https://noteslo-frontend.vercel.app',
       'http://localhost:5173'
-    ]
+    ],
+    version: '1.1.0' // Added to trigger redeployment
   });
 });
 
