@@ -17,25 +17,35 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Security middleware
+// Security headers
 app.use(helmet());
-app.use(cors({
+
+// Define CORS options
+const corsOptions = {
   origin: [
     process.env.FRONTEND_URL || 'http://localhost:5173',
-    'https://notes-16q6.vercel.app', // Your actual frontend URL
-    'https://noteslo-frontend.vercel.app', // Alternative frontend URL
-    'http://localhost:5173' // Local development
+    'https://notes-16q6.vercel.app',
+    'https://noteslo-frontend.vercel.app',
+    'http://localhost:5173'
   ],
-  credentials: true
-}));
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
 
-// Clerk middleware
+// 👇 Preflight OPTIONS support
+app.options('*', cors(corsOptions));
+
+// Apply CORS middleware
+app.use(cors(corsOptions));
+
+// Clerk authentication
 app.use(clerkMiddleware());
 
-// Rate limiting
+// Rate limiter
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: {
     success: false,
     error: 'Too many requests from this IP, please try again later.'
@@ -43,67 +53,59 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// Body parsing middleware
+// Body parsers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Health check endpoint
+// Health check route
 app.get('/health', (req, res) => {
-  res.json({ 
-    success: true, 
-    message: 'Server is healthy - CORS updated for notes-16q6',
+  res.json({
+    success: true,
+    message: 'Server is healthy - CORS configured correctly.',
     timestamp: new Date().toISOString(),
-    cors_origins: [
-      'https://notes-16q6.vercel.app',
-      'https://noteslo-frontend.vercel.app',
-      'http://localhost:5173'
-    ],
-    version: '1.1.0' // Added to trigger redeployment
+    version: '1.1.0'
   });
 });
 
-// API routes with Clerk authentication
+// API routes
 app.use('/api/auth', authTestRoutes);
 app.use('/api/chats', authenticateUser, chatRoutes);
 
-// Error handling middleware
+// Error handlers
 app.use(notFoundHandler);
 app.use(errorHandler);
 
 // Start server
 async function startServer() {
   try {
-    // Connect to database
-    const database = Database.getInstance();
-    await database.connect();
-    
-    // Start HTTP server
+    const db = Database.getInstance();
+    await db.connect();
+
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`🌐 CORS origins: ${corsOptions.origin.join(', ')}`);
     });
-  } catch (error) {
-    console.error('Failed to start server:', error);
+  } catch (err) {
+    console.error('❌ Failed to start server:', err);
     process.exit(1);
   }
 }
 
-// Handle graceful shutdown
+// Graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('Received SIGINT, shutting down gracefully...');
-  const database = Database.getInstance();
-  await database.disconnect();
+  console.log('🔻 Shutting down...');
+  const db = Database.getInstance();
+  await db.disconnect();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  console.log('Received SIGTERM, shutting down gracefully...');
-  const database = Database.getInstance();
-  await database.disconnect();
+  console.log('🔻 Shutting down...');
+  const db = Database.getInstance();
+  await db.disconnect();
   process.exit(0);
 });
 
 startServer();
 
-// Export app for Vercel
 export default app;
